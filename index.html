@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Kalorienrechner</title>
+<style>
+  :root {
+    --bg: #f5f5f0;
+    --surface: #ffffff;
+    --surface2: #f0efea;
+    --accent: #2d6a4f;
+    --accent-light: #d8f3dc;
+    --accent-text: #1b4332;
+    --text: #1a1a1a;
+    --text-muted: #6b7280;
+    --border: rgba(0,0,0,0.1);
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 2px 16px rgba(0,0,0,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111713;
+      --surface: #1c2320;
+      --surface2: #242b27;
+      --accent: #52b788;
+      --accent-light: #1b3a2c;
+      --accent-text: #95d5b2;
+      --text: #f0f0ee;
+      --text-muted: #8b9a90;
+      --border: rgba(255,255,255,0.08);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--text); }
+
+  .app { max-width: 430px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* Header */
+  .header { padding: 56px 20px 20px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .header-icon { width: 44px; height: 44px; background: var(--accent-light); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+  .header-icon svg { width: 22px; height: 22px; stroke: var(--accent); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; color: var(--text); }
+  .header p { font-size: 14px; color: var(--text-muted); margin-top: 3px; }
+
+  /* Scroll area */
+  .scroll { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* Cards */
+  .card { background: var(--surface); border-radius: var(--radius); padding: 18px; border: 1px solid var(--border); }
+  .card-title { font-size: 11px; font-weight: 600; letter-spacing: 0.7px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; }
+
+  /* Activity selector */
+  .activity-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .act-btn { background: var(--surface2); border: 1.5px solid transparent; border-radius: var(--radius-sm); padding: 10px 8px; text-align: center; cursor: pointer; transition: all 0.15s; }
+  .act-btn.active { border-color: var(--accent); background: var(--accent-light); }
+  .act-btn .icon { font-size: 22px; display: block; margin-bottom: 4px; }
+  .act-btn .name { font-size: 12px; font-weight: 500; color: var(--text); }
+  .act-btn .met { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+  .act-btn.active .name { color: var(--accent-text); }
+
+  /* Category tabs */
+  .cat-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 12px; scrollbar-width: none; }
+  .cat-tabs::-webkit-scrollbar { display: none; }
+  .cat-tab { flex-shrink: 0; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; background: var(--surface2); color: var(--text-muted); border: none; transition: all 0.15s; }
+  .cat-tab.active { background: var(--accent); color: #fff; }
+
+  /* Sliders */
+  .slider-block { margin-bottom: 16px; }
+  .slider-block:last-child { margin-bottom: 0; }
+  .slider-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .slider-label { font-size: 14px; color: var(--text); font-weight: 500; }
+  .slider-value { font-size: 18px; font-weight: 700; color: var(--accent); }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 4px; border-radius: 4px;
+    background: var(--surface2); outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--accent); cursor: pointer;
+    border: 3px solid var(--surface);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.2);
+  }
+
+  /* Result */
+  .result-hero { text-align: center; padding: 10px 0; }
+  .result-kcal { font-size: 64px; font-weight: 800; letter-spacing: -2px; color: var(--accent); line-height: 1; }
+  .result-unit { font-size: 15px; color: var(--text-muted); margin-top: 4px; }
+  .result-activity { font-size: 13px; color: var(--text-muted); margin-top: 8px; }
+
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 16px; }
+  .stat-box { background: var(--surface2); border-radius: var(--radius-sm); padding: 10px 8px; text-align: center; }
+  .stat-val { font-size: 15px; font-weight: 700; color: var(--text); }
+  .stat-lbl { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+
+  /* Equivalents */
+  .eq-list { display: flex; flex-direction: column; gap: 10px; }
+  .eq-row { display: flex; align-items: center; gap: 10px; }
+  .eq-icon { font-size: 22px; width: 36px; text-align: center; }
+  .eq-bar-wrap { flex: 1; }
+  .eq-bar-bg { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .eq-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
+  .eq-text { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+  .eq-amount { font-size: 13px; font-weight: 600; color: var(--text); min-width: 50px; text-align: right; }
+
+  /* Footer spacing */
+  .footer-space { height: 20px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="header-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 6v6l4 2"/></svg>
+    </div>
+    <h1>Kalorienrechner</h1>
+    <p>Aktivitäten & Kalorienverbrauch</p>
+  </div>
+
+  <div class="scroll">
+
+    <!-- Activity picker -->
+    <div class="card">
+      <div class="card-title">Aktivität wählen</div>
+      <div class="cat-tabs" id="cat-tabs">
+        <button class="cat-tab active" data-cat="ausdauer">🏃 Ausdauer</button>
+        <button class="cat-tab" data-cat="kraft">💪 Fitness</button>
+        <button class="cat-tab" data-cat="sport">⚽ Sport</button>
+        <button class="cat-tab" data-cat="alltag">🏠 Alltag</button>
+      </div>
+      <div class="activity-grid" id="activity-grid"></div>
+    </div>
+
+    <!-- Sliders -->
+    <div class="card">
+      <div class="card-title">Angaben</div>
+      <div class="slider-block">
+        <div class="slider-header">
+          <span class="slider-label">Körpergewicht</span>
+          <span class="slider-value"><span id="w-val">75</span> kg</span>
+        </div>
+        <input type="range" id="weight" min="40" max="150" value="75" step="1">
+      </div>
+      <div class="slider-block">
+        <div class="slider-header">
+          <span class="slider-label">Dauer</span>
+          <span class="slider-value"><span id="d-val">30</span> min</span>
+        </div>
+        <input type="range" id="duration" min="5" max="180" value="30" step="5">
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div class="card">
+      <div class="card-title">Ergebnis</div>
+      <div class="result-hero">
+        <div class="result-kcal" id="kcal-out">210</div>
+        <div class="result-unit">Kalorien verbrannt</div>
+        <div class="result-activity" id="act-name-out">Laufen (locker)</div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-val" id="per-min-out">7.0</div>
+          <div class="stat-lbl">kcal/min</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="per-hour-out">420</div>
+          <div class="stat-lbl">kcal/Std.</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="met-out">8</div>
+          <div class="stat-lbl">MET-Wert</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Equivalents -->
+    <div class="card">
+      <div class="card-title">Das entspricht etwa …</div>
+      <div class="eq-list">
+        <div class="eq-row">
+          <div class="eq-icon">🍕</div>
+          <div class="eq-bar-wrap">
+            <div class="eq-bar-bg"><div class="eq-bar-fill" id="bar-pizza" style="width:0%"></div></div>
+            <div class="eq-text">Scheiben Pizza (ø 285 kcal)</div>
+          </div>
+          <div class="eq-amount" id="eq-pizza">0.7</div>
+        </div>
+        <div class="eq-row">
+          <div class="eq-icon">🍺</div>
+          <div class="eq-bar-wrap">
+            <div class="eq-bar-bg"><div class="eq-bar-fill" id="bar-beer" style="width:0%"></div></div>
+            <div class="eq-text">Bier à 0,5 l (ø 215 kcal)</div>
+          </div>
+          <div class="eq-amount" id="eq-beer">1.0</div>
+        </div>
+        <div class="eq-row">
+          <div class="eq-icon">🍫</div>
+          <div class="eq-bar-wrap">
+            <div class="eq-bar-bg"><div class="eq-bar-fill" id="bar-choc" style="width:0%"></div></div>
+            <div class="eq-text">Riegel Schokolade (ø 230 kcal)</div>
+          </div>
+          <div class="eq-amount" id="eq-choc">0.9</div>
+        </div>
+        <div class="eq-row">
+          <div class="eq-icon">🍎</div>
+          <div class="eq-bar-wrap">
+            <div class="eq-bar-bg"><div class="eq-bar-fill" id="bar-apple" style="width:0%"></div></div>
+            <div class="eq-text">Äpfel (ø 80 kcal)</div>
+          </div>
+          <div class="eq-amount" id="eq-apple">2.6</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-space"></div>
+  </div>
+</div>
+
+<script>
+const categories = {
+  ausdauer: [
+    { name: "Laufen locker", icon: "🏃", met: 8 },
+    { name: "Laufen flott", icon: "🏃‍♂️", met: 11 },
+    { name: "Walken", icon: "🚶", met: 4.5 },
+    { name: "Radfahren", icon: "🚴", met: 7 },
+    { name: "Schwimmen", icon: "🏊", met: 10 },
+    { name: "Seilspringen", icon: "🤸", met: 9 },
+  ],
+  kraft: [
+    { name: "Krafttraining", icon: "🏋️", met: 5 },
+    { name: "HIIT", icon: "⚡", met: 8 },
+    { name: "Yoga", icon: "🧘", met: 3 },
+    { name: "Aerobic", icon: "💃", met: 6 },
+    { name: "Dehnen", icon: "🤸‍♀️", met: 2.5 },
+    { name: "Pilates", icon: "🧘‍♀️", met: 3.5 },
+  ],
+  sport: [
+    { name: "Fußball", icon: "⚽", met: 7 },
+    { name: "Basketball", icon: "🏀", met: 8 },
+    { name: "Tennis", icon: "🎾", met: 6 },
+    { name: "Volleyball", icon: "🏐", met: 4 },
+    { name: "Boxen", icon: "🥊", met: 9 },
+    { name: "Badminton", icon: "🏸", met: 5.5 },
+  ],
+  alltag: [
+    { name: "Hausarbeit", icon: "🧹", met: 3.5 },
+    { name: "Einkaufen", icon: "🛒", met: 3 },
+    { name: "Gartenarbeit", icon: "🌿", met: 5 },
+    { name: "Treppensteigen", icon: "🪜", met: 8 },
+    { name: "Kochen", icon: "🍳", met: 2.5 },
+    { name: "Büroarbeit", icon: "💻", met: 1.5 },
+  ]
+};
+
+let currentCat = "ausdauer";
+let selectedIdx = 0;
+let weight = 75;
+let duration = 30;
+
+function renderActivities() {
+  const grid = document.getElementById("activity-grid");
+  const acts = categories[currentCat];
+  grid.innerHTML = acts.map((a, i) => `
+    <div class="act-btn ${i === selectedIdx ? 'active' : ''}" data-idx="${i}">
+      <span class="icon">${a.icon}</span>
+      <span class="name">${a.name}</span>
+      <span class="met">MET ${a.met}</span>
+    </div>
+  `).join("");
+  grid.querySelectorAll(".act-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      selectedIdx = parseInt(btn.dataset.idx);
+      renderActivities();
+      calc();
+    });
+  });
+}
+
+function calc() {
+  const act = categories[currentCat][selectedIdx];
+  const kcalPerMin = act.met * 3.5 * weight / 200;
+  const total = Math.round(kcalPerMin * duration);
+  const perHour = Math.round(kcalPerMin * 60);
+  const perMin = (kcalPerMin).toFixed(1);
+
+  document.getElementById("kcal-out").textContent = total;
+  document.getElementById("act-name-out").textContent = act.name;
+  document.getElementById("per-min-out").textContent = perMin;
+  document.getElementById("per-hour-out").textContent = perHour;
+  document.getElementById("met-out").textContent = act.met;
+
+  const pizza = (total / 285).toFixed(1);
+  const beer  = (total / 215).toFixed(1);
+  const choc  = (total / 230).toFixed(1);
+  const apple = (total / 80).toFixed(1);
+
+  document.getElementById("eq-pizza").textContent = pizza;
+  document.getElementById("eq-beer").textContent  = beer;
+  document.getElementById("eq-choc").textContent  = choc;
+  document.getElementById("eq-apple").textContent = apple;
+
+  const clamp = (v, max) => Math.min(100, (v / max) * 100).toFixed(0) + "%";
+  document.getElementById("bar-pizza").style.width = clamp(pizza, 3);
+  document.getElementById("bar-beer").style.width  = clamp(beer,  4);
+  document.getElementById("bar-choc").style.width  = clamp(choc,  3);
+  document.getElementById("bar-apple").style.width = clamp(apple, 8);
+}
+
+document.querySelectorAll(".cat-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelector(".cat-tab.active").classList.remove("active");
+    tab.classList.add("active");
+    currentCat = tab.dataset.cat;
+    selectedIdx = 0;
+    renderActivities();
+    calc();
+  });
+});
+
+document.getElementById("weight").addEventListener("input", function() {
+  weight = parseInt(this.value);
+  document.getElementById("w-val").textContent = weight;
+  calc();
+});
+
+document.getElementById("duration").addEventListener("input", function() {
+  duration = parseInt(this.value);
+  document.getElementById("d-val").textContent = duration;
+  calc();
+});
+
+renderActivities();
+calc();
+</script>
+</body>
+</html>
